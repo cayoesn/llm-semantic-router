@@ -1,17 +1,86 @@
 version: '3.8'
 
 services:
-  router:
-    build: .
+  semantic-router-redis:
+    image: redis:7-alpine
+    container_name: semantic_router_redis
     ports:
-      - "8000:8000"
-    environment:
-      - LANGFUSE_PUBLIC_KEY=pk-lf-demo
-      - LANGFUSE_SECRET_KEY=sk-lf-demo
-      - LANGFUSE_HOST=http://localhost:3000
-      - SIMILARITY_THRESHOLD=0.88
+      - "6380:6379"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
+    networks:
+      - semantic_router_network
+
+  semantic-router-postgres:
+    image: postgres:15-alpine
+    container_name: semantic_router_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: semanticrouterpassword
+      POSTGRES_DB: semantic_router_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - semantic_router_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - semantic_router_network
+
+  semantic-router-langfuse:
+    image: langfuse/langfuse:2
+    container_name: semantic_router_langfuse
+    depends_on:
+      semantic-router-postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://postgres:semanticrouterpassword@semantic-router-postgres:5432/semantic_router_db
+      - NEXTAUTH_SECRET=semanticroutersecret
+      - NEXTAUTH_URL=http://localhost:3004
+      - SALT=semanticroutersalt
+      - ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_INIT_USER_EMAIL=admin@semanticrouter.com
+      - LANGFUSE_INIT_USER_PASSWORD=adminpassword123
+      - LANGFUSE_INIT_ORG_ID=semanticrouter-org
+      - LANGFUSE_INIT_ORG_NAME=SemanticRouter Org
+      - LANGFUSE_INIT_PROJECT_ID=semanticrouter-project
+      - LANGFUSE_INIT_PROJECT_NAME=SemanticRouter Project
+      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=pk-lf-semanticrouter
+      - LANGFUSE_INIT_PROJECT_SECRET_KEY=sk-lf-semanticrouter
+      - LANGFUSE_DISABLE_SIGNUP=true
+    ports:
+      - "3004:3000"
+    networks:
+      - semantic_router_network
+
+  semantic-router-app:
+    build: .
+    container_name: semantic_router_app
+    ports:
+      - "8003:8000"
+    environment:
+      - ENV=production
+      - REDIS_HOST=semantic-router-redis
+      - REDIS_PORT=6379
+      - LANGFUSE_PUBLIC_KEY=pk-lf-semanticrouter
+      - LANGFUSE_SECRET_KEY=sk-lf-semanticrouter
+      - LANGFUSE_HOST=http://semantic-router-langfuse:3000
+    depends_on:
+      - semantic-router-redis
+      - semantic-router-langfuse
+    networks:
+      - semantic_router_network
+
+networks:
+  semantic_router_network:
+    driver: bridge
+
+volumes:
+  semantic_router_postgres_data:
