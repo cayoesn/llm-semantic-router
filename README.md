@@ -122,3 +122,41 @@ curl -X GET "http://localhost:8000/api/v1/cache/stats"
 
 ## 🛡️ Licença & Autor
 Desenvolvido por **Cayo Neves** ([@cayoesn](https://github.com/cayoesn)) como parte do Portfólio de LLM & LLMOps de Alta Performance.
+
+
+
+---
+
+## 🚀 Execução em Container Isolado (100% Autônomo)
+
+Este repositório é **100% independente e autônomo**. Ele não depende de nenhum outro projeto do ecossistema para ser executado, testado ou analisado.
+
+### 🛠️ Componentes Inclusos na Stack Docker Exclusiva:
+- `semantic_router_app`: API FastAPI de Cache Semântico e Roteador de Modelos.
+- `semantic_router_redis`: Instância Redis para busca vetorial de similaridade e cache (porta 6380).
+- `semantic_router_postgres`: Banco de dados PostgreSQL dedicado (porta 5435).
+- `semantic_router_langfuse`: Servidor de observabilidade Langfuse self-hosted pré-inicializado.
+
+### 📦 Como Executar:
+
+1. **Subir toda a pilha isolada**:
+   ```bash
+   docker-compose up -d --build
+   ```
+
+2. **Endpoints & Endereços de Acesso**:
+   - **Serviço da Aplicação**: `http://localhost:8003` (Documentação interativa OpenAPI em `/docs` se aplicável)
+   - **Painel de Observabilidade (Langfuse)**: `http://localhost:3004`
+   - **Credenciais Automáticas do Langfuse**:
+     - Email: `admin@llmsemanticrouter.com`
+     - Senha: `adminpassword123`
+
+3. **Execução de Testes Automatizados em Container**:
+   ```bash
+   make test
+   ```
+
+4. **Encerrar a pilha**:
+   ```bash
+   docker-compose down -v
+   ```
