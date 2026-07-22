@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  router:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - LANGFUSE_PUBLIC_KEY=pk-lf-demo
+      - LANGFUSE_SECRET_KEY=sk-lf-demo
+      - LANGFUSE_HOST=http://localhost:3000
+      - SIMILARITY_THRESHOLD=0.88
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
