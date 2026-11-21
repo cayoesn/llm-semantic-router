@@ -5,60 +5,62 @@ from app.core.semantic_cache import SemanticCache
 
 
 def test_cost_cascade_router_simple_query():
-    decision = cascade_router.route_query("Qual eh a capital da Franca?")
+    decision = cascade_router.route_query("What is the capital of France?")
     assert decision.selected_tier == ModelTier.SLM_NANO
     assert decision.target_model_name == "llama-3.2-3b-instruct"
 
 
 def test_cost_cascade_router_complex_query():
-    decision = cascade_router.route_query("Analise detalhadamente os trade-offs e a arquitetura de sistemas distribuídos sob alto tráfego.")
+    decision = cascade_router.route_query(
+        "Analyze in detail the trade-offs and system architecture of distributed services under high traffic."
+    )
     assert decision.selected_tier == ModelTier.LLM_FRONTIER
     assert decision.target_model_name == "gpt-4o"
 
 
 def test_cost_cascade_router_code_detection():
-    query = "Como refatorar este método? def calculate_metrics(data): return sum(data)"
+    query = "How can I refactor this method? def calculate_metrics(data): return sum(data)"
     decision = cascade_router.route_query(query)
     assert decision.metrics["has_code"] == 1.0
     assert decision.selected_tier in [ModelTier.SLM_STANDARD, ModelTier.LLM_FRONTIER]
 
 
 def test_semantic_cache_lru_bounded_eviction():
-    # Cache limitado a 3 itens
+    # Cache bounded to 3 items
     cache = SemanticCache(max_size=3)
-    
-    cache.set("pergunta 1", "resposta 1", "model_1")
-    cache.set("pergunta 2", "resposta 2", "model_2")
-    cache.set("pergunta 3", "resposta 3", "model_3")
-    
+
+    cache.set("question 1", "answer 1", "model_1")
+    cache.set("question 2", "answer 2", "model_2")
+    cache.set("question 3", "answer 3", "model_3")
+
     assert len(cache._cache) == 3
-    
-    # Acessa 'pergunta 1' para torná-la a mais recente no LRU
-    entry, sim = cache.search("pergunta 1", threshold=0.8)
+
+    # Access 'question 1' so it becomes the most recently used entry (LRU)
+    entry, sim = cache.search("question 1", threshold=0.8)
     assert entry is not None
-    assert entry.prompt == "pergunta 1"
-    
-    # Adiciona o 4º item -> deve expulsar 'pergunta 2' (que é agora a mais antiga/LRU)
-    cache.set("pergunta 4", "resposta 4", "model_4")
-    
+    assert entry.prompt == "question 1"
+
+    # Insert 4th item -> must evict 'question 2' (now the least recently used)
+    cache.set("question 4", "answer 4", "model_4")
+
     assert len(cache._cache) == 3
-    assert "pergunta 2" not in cache._cache
-    assert "pergunta 1" in cache._cache
-    assert "pergunta 3" in cache._cache
-    assert "pergunta 4" in cache._cache
+    assert "question 2" not in cache._cache
+    assert "question 1" in cache._cache
+    assert "question 3" in cache._cache
+    assert "question 4" in cache._cache
 
 
 def test_semantic_cache_ttl_expiration():
     cache = SemanticCache(max_size=10, default_ttl_seconds=0.05)
-    cache.set("prompt rápido", "resposta rápida", "model_quick", ttl_seconds=0.05)
-    
-    # Busca imediata: deve encontrar
-    hit, sim = cache.search("prompt rápido", threshold=0.8)
+    cache.set("fast prompt", "fast response", "model_quick", ttl_seconds=0.05)
+
+    # Immediate lookup: must hit
+    hit, sim = cache.search("fast prompt", threshold=0.8)
     assert hit is not None
-    
-    # Aguarda TTL expirar
+
+    # Wait for TTL expiration
     time.sleep(0.06)
-    
-    # Segunda busca: deve ignorar/purgar expirado
-    miss, sim = cache.search("prompt rápido", threshold=0.8)
+
+    # Second lookup: must ignore and purge expired entry
+    miss, sim = cache.search("fast prompt", threshold=0.8)
     assert miss is None

@@ -37,12 +37,12 @@ class CacheEntry:
 
 class SemanticCache:
     """Enterprise Bounded LRU & Matrix-Accelerated Semantic Vector Cache.
-    
-    Características Staff/Principal:
-    1. Bounded LRU com OrderedDict: Limite estrito de memória (max_size) prevenindo OOM.
-    2. Matrix Acceleration: Projeção vetorial BLAS simultânea (O(N) em C SIMD em vez de loops Python).
-    3. Suporte a TTL por entrada para invalidação e purga assíncrona/on-access.
-    4. Métricas de Hit Ratio, Latência economizada e Projeção Financeira USD.
+
+    Key Staff/Principal Engineering Properties:
+    1. Bounded LRU with OrderedDict: Strict memory cap (max_size) preventing OOM.
+    2. Matrix Acceleration: Batch BLAS vector projection (O(N) in C SIMD instead of Python loops).
+    3. Per-entry TTL support for invalidation and asynchronous/on-access purging.
+    4. Hit ratio, latency savings, and projected USD cost-savings metrics.
     """
 
     def __init__(self, max_size: int = 10000, default_ttl_seconds: float = 86400.0):
@@ -58,14 +58,14 @@ class SemanticCache:
         self._total_saved_usd: float = 0.0
 
     def _sync_vector_matrix(self):
-        """Reconstrói buffers de busca linear indexada."""
+        """Rebuilds indexed linear search buffers."""
         self._keys_cache = list(self._cache.keys())
         self._vectors_cache = [
             np.array(self._cache[k].vector, dtype=np.float32) for k in self._keys_cache
         ]
 
     def search(self, prompt: str, threshold: float = 0.88) -> Tuple[Optional[CacheEntry], float]:
-        """Busca vetorizada no cache com suporte a BLAS e verificação de expiração TTL."""
+        """Performs vectorized cache lookup with BLAS acceleration and TTL expiration checks."""
         self._total_requests += 1
         query_vector = np.array(embedder.encode(prompt), dtype=np.float32)
         norm_q = np.linalg.norm(query_vector)
@@ -76,7 +76,7 @@ class SemanticCache:
             self._cache_misses += 1
             return None, 0.0
 
-        # Purga sob demanda se encontrar expirados na busca
+        # On-demand purge of expired entries during lookup
         now = time.time()
         valid_keys = []
         valid_vectors = []
@@ -91,9 +91,9 @@ class SemanticCache:
             self._cache_misses += 1
             return None, 0.0
 
-        # Matrix dot product acelerado: V (N, D) . q (D,) -> similarities (N,)
+        # Accelerated matrix dot product: V (N, D) . q (D,) -> similarities (N,)
         matrix = np.array(valid_vectors, dtype=np.float32)
-        # Assegura normalização das linhas
+        # Ensure row-wise L2 normalization
         row_norms = np.linalg.norm(matrix, axis=1, keepdims=True)
         row_norms[row_norms == 0.0] = 1.0
         norm_matrix = matrix / row_norms
@@ -107,7 +107,7 @@ class SemanticCache:
         if best_similarity >= threshold:
             best_entry.hit_count += 1
             best_entry.last_accessed_at = now
-            self._cache.move_to_end(best_key)  # Marca como recentemente usado (LRU)
+            self._cache.move_to_end(best_key)  # Mark entry as most recently used (LRU)
             self._cache_hits += 1
             self._total_saved_usd += best_entry.cost_saved
             logger.info(f"Cache HIT! Similarity: {best_similarity:.4f} >= {threshold}")
@@ -125,8 +125,8 @@ class SemanticCache:
         cost_saved: float = 0.001,
         ttl_seconds: Optional[float] = None,
     ) -> CacheEntry:
-        """Adiciona uma entrada no cache com política de expulsão LRU quando atingir max_size."""
-        # Se a chave já existir, atualiza
+        """Inserts a cache entry using LRU eviction when max_size is reached."""
+        # Update existing entry if key is already cached
         if prompt in self._cache:
             self._cache.move_to_end(prompt)
             entry = self._cache[prompt]
@@ -136,7 +136,7 @@ class SemanticCache:
             entry.created_at = time.time()
             return entry
 
-        # Se atingir max_size, expulsa a entrada menos recentemente usada (FIFO/LRU no início)
+        # Evict least recently used entry when capacity (max_size) is reached
         if len(self._cache) >= self.max_size:
             evicted_key, _ = self._cache.popitem(last=False)
             logger.debug(f"Cache eviction: {evicted_key} purged by LRU policy.")
@@ -154,7 +154,7 @@ class SemanticCache:
         return entry
 
     def get_stats(self) -> Dict[str, Any]:
-        """Estatísticas analíticas do cache semântico."""
+        """Returns analytical statistics for the semantic cache."""
         hit_ratio = (self._cache_hits / self._total_requests * 100.0) if self._total_requests > 0 else 0.0
         return {
             "total_requests": self._total_requests,
@@ -167,7 +167,7 @@ class SemanticCache:
         }
 
     def clear(self):
-        """Limpa o cache semântico."""
+        """Clears the semantic cache and resets counters."""
         self._cache.clear()
         self._total_requests = 0
         self._cache_hits = 0

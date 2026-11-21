@@ -6,8 +6,8 @@ import re
 
 class VectorEmbedder:
     """
-    Gera vetores de embedding leve e determinísticos com base na frequência e dispersão semântica das palavras,
-    garantindo computação de similaridade de cosseno em sub-milissegundos sem dependências pesadas.
+    Generates lightweight, deterministic embedding vectors based on token frequency and
+    semantic dispersion, enabling sub-millisecond cosine similarity without heavy dependencies.
     """
     def __init__(self, dimension: int = 384):
         self.dimension = dimension
@@ -23,7 +23,7 @@ class VectorEmbedder:
 
         vec = np.zeros(self.dimension, dtype=np.float32)
         for token in tokens:
-            # Hash determinístico do token para mapear nas dimensões do vetor
+            # Deterministic token hash mapped across vector dimensions
             for i in range(3):
                 idx = hash(f"{token}_{i}") % self.dimension
                 val = (hash(token) % 1000) / 1000.0

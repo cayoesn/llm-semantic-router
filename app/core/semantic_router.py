@@ -8,27 +8,26 @@ logger = logging.getLogger("llm_semantic_router.router")
 
 class SemanticRouter:
     """
-    Roteador de Intenções Semânticas que analisa a complexidade do prompt para selecionar
-    a classe adequada de modelo LLM (Fast Flash vs Advanced Pro).
+    Semantic Intent Router that evaluates prompt complexity to select
+    the appropriate LLM tier (Fast Flash vs. Advanced Pro).
     """
-    
-    # Palavras-chave indicativas de alta complexidade técnica ou raciocínio profundo
+
+    # Keywords indicating high technical complexity or deep reasoning
     ADVANCED_KEYWORDS = [
-        "código", "code", "refatorar", "refactor", "arquitetura", "architecture",
-        "algoritmo", "algorithm", "otimizar", "optimize", "matemática", "math",
-        "análise", "analysis", "debug", "sql", "python", "docker", "fastapi",
-        "microservices", "provar", "proof", "raciocínio", "reasoning"
+        "code", "refactor", "architecture", "algorithm", "optimize",
+        "math", "analysis", "debug", "sql", "python", "docker",
+        "fastapi", "microservices", "proof", "prove", "reasoning"
     ]
 
     def classify_and_route(self, prompt: str) -> Tuple[str, str, Dict[str, Any]]:
         """
-        Classifica o prompt e define o modelo de destino apropriado.
-        Retorna (target_model, tier_level, metadata).
+        Classifies the prompt and selects the appropriate target model.
+        Returns (target_model, tier_level, metadata).
         """
         lower_prompt = prompt.lower()
         matched_keywords = [kw for kw in self.ADVANCED_KEYWORDS if kw in lower_prompt]
-        
-        # Considera complexo se houver palavras-chave técnicas ou se o prompt for muito longo (>250 caracteres)
+
+        # Treat as complex if technical keywords match or if the prompt exceeds 250 characters
         is_complex = len(matched_keywords) > 0 or len(prompt) > 250
         
         if is_complex:

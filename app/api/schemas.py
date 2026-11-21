@@ -3,10 +3,22 @@ from typing import Optional, Dict, Any
 
 
 class RouteRequest(BaseModel):
-    prompt: str = Field(..., description="Prompt enviado pelo usuário", example="Como criar uma API FastAPI com Docker?")
-    session_id: Optional[str] = Field(None, description="ID opcional da sessão do usuário")
-    force_refresh: bool = Field(False, description="Se True, ignora o cache semântico e força a chamada ao modelo")
-    similarity_threshold: Optional[float] = Field(0.88, ge=0.0, le=1.0, description="Threshold mínimo de similaridade para considerar Cache HIT")
+    prompt: str = Field(
+        ...,
+        description="Prompt submitted by the user",
+        examples=["How do I build a FastAPI service with Docker?"],
+    )
+    session_id: Optional[str] = Field(None, description="Optional user session identifier")
+    force_refresh: bool = Field(
+        False,
+        description="If True, bypasses the semantic cache and forces a model invocation",
+    )
+    similarity_threshold: Optional[float] = Field(
+        0.88,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity threshold required to qualify as a cache HIT",
+    )
 
 
 class RouteResponse(BaseModel):

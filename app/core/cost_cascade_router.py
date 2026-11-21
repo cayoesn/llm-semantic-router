@@ -22,16 +22,16 @@ class CascadeRoutingDecision(BaseModel):
 
 class CostAwareCascadeRouter:
     """Enterprise Cost-Aware Model Cascade & Semantic Router Engine.
-    
-    Analisa a complexidade semântica, léxica e sintática da consulta para rotear dinamicamente
-    para o modelo com melhor relação custo/benefício (SLM Nano x SLM Standard x LLM Frontier).
+
+    Analyzes semantic, lexical, and syntactic query complexity to dynamically route
+    requests to the most cost-effective model tier (SLM Nano vs. SLM Standard vs. LLM Frontier).
     """
 
     COMPLEXITY_INDICATORS = [
-        "analise detalhadamente", "compare e contraste", "escreva um algoritmo",
-        "prove o teorema", "refatore o código", "arquitetura de sistemas",
-        "trade-offs", "diagnostique o erro", "explique a física quântica",
-        "deadlock", "race condition", "distribuídos", "concorrência", "formalmente"
+        "analyze in detail", "compare and contrast", "write an algorithm",
+        "prove the theorem", "refactor the code", "system architecture",
+        "trade-offs", "diagnose the error", "explain quantum physics",
+        "deadlock", "race condition", "distributed", "concurrency", "formally"
     ]
 
     CODE_SYNTAX_PATTERNS = [
@@ -43,14 +43,14 @@ class CostAwareCascadeRouter:
     ]
 
     def _compute_lexical_diversity(self, text: str) -> float:
-        """Type-Token Ratio (TTR) normalizado: razão entre vocabulário único e total de palavras."""
+        """Normalized Type-Token Ratio (TTR): ratio of unique vocabulary to total word count."""
         words = re.findall(r"\b\w+\b", text.lower())
         if not words:
             return 0.0
         return min(1.0, len(set(words)) / max(1, len(words)))
 
     def _detect_code_syntax(self, text: str) -> bool:
-        """Identifica se a consulta contém trechos de código ou queries estruturadas."""
+        """Detects whether the query contains code snippets or structured queries."""
         return any(re.search(pat, text, re.IGNORECASE) for pat in self.CODE_SYNTAX_PATTERNS)
 
     def route_query(self, query: str) -> CascadeRoutingDecision:
@@ -62,7 +62,7 @@ class CostAwareCascadeRouter:
 
         code_bonus = 0.20 if has_code else 0.0
         
-        # Fórmula ponderada de complexidade
+        # Weighted complexity formula
         base_score = (complexity_hits * 0.25) + length_factor + code_bonus
         complexity_score = min(1.0, max(0.0, base_score))
 
@@ -70,17 +70,17 @@ class CostAwareCascadeRouter:
             tier = ModelTier.SLM_NANO
             model = "llama-3.2-3b-instruct"
             cost = 0.00005
-            reason = "Consulta simples roteada para SLM Nano para resposta ultrarrápida e baixo custo."
+            reason = "Simple query routed to SLM Nano for ultra-fast, low-cost response."
         elif complexity_score < 0.6:
             tier = ModelTier.SLM_STANDARD
             model = "llama-3.3-70b-instruct"
             cost = 0.0005
-            reason = "Consulta de complexidade média roteada para SLM Standard."
+            reason = "Medium-complexity query routed to SLM Standard."
         else:
             tier = ModelTier.LLM_FRONTIER
             model = "gpt-4o"
             cost = 0.005
-            reason = "Consulta altamente complexa/técnica roteada para LLM Frontier."
+            reason = "Highly complex or technical query routed to LLM Frontier."
 
         return CascadeRoutingDecision(
             query=query,
@@ -98,5 +98,5 @@ class CostAwareCascadeRouter:
         )
 
 
-# Instância Singleton
+# Singleton instance
 cascade_router = CostAwareCascadeRouter()

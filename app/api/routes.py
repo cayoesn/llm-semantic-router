@@ -12,20 +12,20 @@ router = APIRouter()
 @router.post("/api/v1/route", response_model=RouteResponse, status_code=status.HTTP_200_OK)
 async def route_and_execute(req: RouteRequest):
     """
-    Roteia o prompt do usuário avaliando o cache semântico (Cache HIT < 5ms) e seleciona
-    o modelo ideal de destino (Tier-1 Flash vs Tier-2 Pro) caso haja Cache MISS.
+    Routes the user prompt by checking the semantic cache (Cache HIT < 5ms) and selecting
+    the optimal target model (Tier-1 Flash vs. Tier-2 Pro) on a Cache MISS.
     """
     start_time = time.time()
     threshold = req.similarity_threshold if req.similarity_threshold is not None else settings.SIMILARITY_THRESHOLD
 
-    # Rastreamento de Observabilidade no Langfuse
+    # Langfuse observability tracing
     trace = RouterObservability.trace_routing_request(
         prompt=req.prompt,
         similarity_threshold=threshold,
         session_id=req.session_id
     )
 
-    # Step 1: Checa Cache Semântico
+    # Step 1: Check semantic cache
     cached_entry, similarity = None, 0.0
     if not req.force_refresh:
         span_cache = RouterObservability.record_span(trace, "cache_lookup", {"threshold": threshold})
@@ -64,7 +64,7 @@ async def route_and_execute(req: RouteRequest):
             metadata={"source": "semantic_cache", "cached_at": cached_entry.timestamp}
         )
 
-    # Step 2: Cache MISS - Executa Roteador Semântico
+    # Step 2: Cache MISS - Invoke semantic router
     span_route = RouterObservability.record_span(trace, "semantic_routing_classification", {"prompt": req.prompt})
     target_model, tier_level, route_metadata = semantic_router.classify_and_route(req.prompt)
     if span_route:
@@ -75,11 +75,11 @@ async def route_and_execute(req: RouteRequest):
             {"target_model": target_model, "tier": tier_level}
         )
 
-    # Simula geração do modelo de linguagem (Gera resposta coerente e armazena no cache)
-    simulated_response = f"Resposta processada via modelo {target_model} [{tier_level}] para a consulta: '{req.prompt}'"
+    # Simulate LLM generation (produce a coherent response and store it in the cache)
+    simulated_response = f"Response processed via model {target_model} [{tier_level}] for query: '{req.prompt}'"
     cost_saved = settings.COST_PER_1K_ADVANCED if "pro" in target_model else settings.COST_PER_1K_FAST
     
-    # Atualiza o cache com o novo vetor e resposta
+    # Update cache with the new embedding vector and response
     semantic_cache.set(
         prompt=req.prompt,
         response=simulated_response,
@@ -115,7 +115,7 @@ async def route_and_execute(req: RouteRequest):
 @router.get("/api/v1/cache/stats", response_model=CacheStatsResponse, status_code=status.HTTP_200_OK)
 async def get_cache_statistics():
     """
-    Retorna métricas de hit ratio, economia estimada em USD e total de requisições.
+    Returns hit ratio metrics, estimated USD savings, and total request count.
     """
     stats = semantic_cache.get_stats()
     return CacheStatsResponse(**stats)
@@ -124,7 +124,7 @@ async def get_cache_statistics():
 @router.delete("/api/v1/cache", response_model=MessageResponse, status_code=status.HTTP_200_OK)
 async def clear_semantic_cache():
     """
-    Expurga todas as entradas e zera as estatísticas do cache semântico.
+    Purges all entries and resets semantic cache statistics.
     """
     semantic_cache.clear()
     return MessageResponse(message="Semantic cache cleared successfully", status="success")
@@ -133,7 +133,7 @@ async def clear_semantic_cache():
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     """
-    Endpoint de verificação de saúde do serviço.
+    Service health check endpoint.
     """
     return {
         "status": "HEALTHY",

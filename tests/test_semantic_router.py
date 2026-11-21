@@ -18,8 +18,8 @@ def reset_cache():
 
 
 def test_vector_embedder():
-    vec1 = embedder.encode("Como configurar FastAPI?")
-    vec2 = embedder.encode("Como criar uma API com FastAPI?")
+    vec1 = embedder.encode("How do I configure FastAPI?")
+    vec2 = embedder.encode("How do I build an API with FastAPI?")
     vec_empty = embedder.encode("")
 
     assert len(vec1) == 384
@@ -29,7 +29,7 @@ def test_vector_embedder():
     sim = VectorEmbedder.cosine_similarity(vec1, vec2)
     assert 0.0 <= sim <= 1.0
 
-    # Teste de vetor zero
+    # Zero-vector test
     sim_zero = VectorEmbedder.cosine_similarity([0.0] * 384, [1.0] * 384)
     assert sim_zero == 0.0
 
@@ -38,22 +38,22 @@ def test_semantic_cache_operations():
     cache = SemanticCache()
     assert cache.get_stats()["total_requests"] == 0
 
-    # Adiciona entrada
+    # Insert entry
     cache.set(
-        prompt="Qual é o preço do arroz?",
-        response="O arroz custa R$ 5,00/kg",
+        prompt="What is the price of rice?",
+        response="Rice costs $5.00/kg",
         model_used="gemini-3.5-flash",
         cost_saved=0.0005
     )
 
-    # Busca com similaridade alta (HIT)
-    entry_hit, sim_hit = cache.search("Qual é o preço do arroz?", threshold=0.80)
+    # High-similarity lookup (HIT)
+    entry_hit, sim_hit = cache.search("What is the price of rice?", threshold=0.80)
     assert entry_hit is not None
-    assert "arroz" in entry_hit.response
+    assert "Rice" in entry_hit.response
     assert sim_hit >= 0.80
 
-    # Busca com prompt diferente (MISS)
-    entry_miss, sim_miss = cache.search("Como funciona a teoria da relatividade?", threshold=0.95)
+    # Different prompt lookup (MISS)
+    entry_miss, sim_miss = cache.search("How does the theory of relativity work?", threshold=0.95)
     assert entry_miss is None
 
     stats = cache.get_stats()
@@ -67,33 +67,35 @@ def test_semantic_cache_operations():
 
 
 def test_semantic_router_classification():
-    # Prompt simples -> Tier 1
-    model_simple, tier_simple, meta_simple = semantic_router.classify_and_route("Olá, bom dia!")
+    # Simple prompt -> Tier 1
+    model_simple, tier_simple, meta_simple = semantic_router.classify_and_route("Hello, good morning!")
     assert "flash" in model_simple
     assert "Tier-1" in tier_simple
 
-    # Prompt complexo com palavras-chave -> Tier 2
-    model_complex, tier_complex, meta_complex = semantic_router.classify_and_route("Como refatorar e otimizar um algoritmo em Python para arquitetura de microsserviços?")
+    # Complex prompt with technical keywords -> Tier 2
+    model_complex, tier_complex, meta_complex = semantic_router.classify_and_route(
+        "How do I refactor and optimize a Python algorithm for a microservices architecture?"
+    )
     assert "pro" in model_complex
     assert "Tier-2" in tier_complex
 
 
 def test_api_route_and_cache_flow():
     payload = {
-        "prompt": "Qual o horário de funcionamento da loja?",
+        "prompt": "What are the store opening hours?",
         "session_id": "test-session-1",
         "force_refresh": False,
         "similarity_threshold": 0.85
     }
 
-    # 1a Chamada -> Cache MISS (Insere no Cache)
+    # 1st Call -> Cache MISS (inserts into cache)
     response1 = client.post("/api/v1/route", json=payload)
     assert response1.status_code == 200
     data1 = response1.json()
     assert data1["cache_hit"] is False
     assert "gemini-3.5-flash" in data1["target_model"]
 
-    # 2a Chamada -> Cache HIT (< 5ms)
+    # 2nd Call -> Cache HIT (< 5ms)
     response2 = client.post("/api/v1/route", json=payload)
     assert response2.status_code == 200
     data2 = response2.json()
@@ -101,7 +103,7 @@ def test_api_route_and_cache_flow():
     assert "[CACHE HIT ⚡]" in data2["response"]
     assert data2["similarity_score"] >= 0.85
 
-    # 3a Chamada com force_refresh -> Cache MISS forçado
+    # 3rd Call with force_refresh -> forced Cache MISS
     payload_refresh = {**payload, "force_refresh": True}
     response3 = client.post("/api/v1/route", json=payload_refresh)
     assert response3.status_code == 200
@@ -109,9 +111,9 @@ def test_api_route_and_cache_flow():
 
 
 def test_api_cache_stats_and_purge():
-    # Popula cache
-    client.post("/api/v1/route", json={"prompt": "Pergunta A"})
-    client.post("/api/v1/route", json={"prompt": "Pergunta A"})  # Hit
+    # Populate cache
+    client.post("/api/v1/route", json={"prompt": "Question A"})
+    client.post("/api/v1/route", json={"prompt": "Question A"})  # Hit
 
     stats_res = client.get("/api/v1/cache/stats")
     assert stats_res.status_code == 200
@@ -119,12 +121,12 @@ def test_api_cache_stats_and_purge():
     assert stats["total_requests"] == 2
     assert stats["cache_hits"] == 1
 
-    # Limpa cache
+    # Clear cache
     purge_res = client.delete("/api/v1/cache")
     assert purge_res.status_code == 200
     assert purge_res.json()["status"] == "success"
 
-    # Verifica cache zerado
+    # Verify cache is empty
     stats_after = client.get("/api/v1/cache/stats").json()
     assert stats_after["cached_prompts_count"] == 0
 
@@ -169,7 +171,7 @@ def test_observability_coverage(monkeypatch):
     RouterObservability.record_metrics(trace, True, "gemini-3.5-flash", 0.95, 2.5, 0.001)
     RouterObservability.flush()
 
-    # Testes quando langfuse_client é Nulo
+    # Tests when langfuse_client is None
     monkeypatch.setattr(obs_mod, "langfuse_client", None)
     assert _create_trace("test") is None
     assert RouterObservability.record_span(None, "span", {}) is None
